@@ -17,7 +17,7 @@ public class MultiCurve extends Region {
             point.toFront();
         });
     }
-    private class ControlNode extends Region {
+    public class ControlNode extends Region {
         double x, y, pointX, pointY;
         boolean end;
         int segment;
@@ -36,6 +36,7 @@ public class MultiCurve extends Region {
             line.setStroke(Color.GRAY);
             this.getChildren().add(line);
             this.getChildren().add(node);
+            node.setOnMouseDragged(mouseEvent -> onMouseDragged(mouseEvent));
         }
         public void update() {
             node.setCenterX(x);
@@ -44,6 +45,35 @@ public class MultiCurve extends Region {
             line.setStartY(y);
             line.setEndX(pointX);
             line.setEndY(pointY);
+        }
+        public void onMouseDragged(MouseEvent mouseEvent) {
+            x = mouseEvent.getX();
+            y = mouseEvent.getY();
+            node.setCenterX(x);
+            node.setCenterY(y);
+            line.setStartX(x);
+            line.setStartY(y);
+            if (end) {
+                segments.get(segment).setControlX2(x);
+                segments.get(segment).setControlY2(y);
+                if (segment < segments.size()-1) {
+                    segments.get(segment+1).setControlX1(pointX+(pointX-x));
+                    segments.get(segment+1).setControlY1(pointY+(pointY-y));
+                    startNodes.get(segment+1).x = pointX+(pointX-x);
+                    startNodes.get(segment+1).y = pointY+(pointY-y);
+                    startNodes.get(segment+1).update();
+                }
+            } else {
+                segments.get(segment).setControlX1(x);
+                segments.get(segment).setControlY1(y);
+                if (segment > 0) {
+                    segments.get(segment-1).setControlX2(pointX+(pointX-x));
+                    segments.get(segment-1).setControlY2(pointY+(pointY-y));
+                    endNodes.get(segment-1).x = pointX+(pointX-x);
+                    endNodes.get(segment-1).y = pointY+(pointY-y);
+                    endNodes.get(segment-1).update();
+                }
+            }
         }
     }
     public class Node extends Region {
@@ -117,14 +147,18 @@ public class MultiCurve extends Region {
     int currentSegment;
     boolean selected;
     Main parent;
+    Color colour;
+    double lineThickness;
     Vector<CubicCurve> segments = new Vector<>();
     Vector<Node> points;
     Vector<ControlNode> startNodes;
     Vector<ControlNode> endNodes;
 
-    public MultiCurve (Main parent) {
+    public MultiCurve (Main parent, Color colour, double lineThickness) {
+        this.lineThickness = lineThickness;
         selected = true;
         currentSegment = 0;
+        this.colour = colour;
         this.parent = parent;
         this.points = new Vector<>();
         this.startNodes = new Vector<>();
@@ -132,7 +166,7 @@ public class MultiCurve extends Region {
         setOnMouseClicked(mouseEvent -> {
             switch (parent.tool) {
                 case 1:
-                    selected = true;
+                    selectedChanged(true);
                     break;
                 case 3:
                     erase();
@@ -141,13 +175,30 @@ public class MultiCurve extends Region {
         });
         setOnKeyPressed(keyEvent -> {
             if (keyEvent.getCode().equals(KeyCode.ESCAPE)) {
-                selected = false;
+                selectedChanged(false);
+            }
+            if (keyEvent.getCode().equals(KeyCode.DELETE) && selected) {
+                erase();
+            }
+        });
+    }
+
+    public void selectedChanged(boolean selected) {
+        this.selected = selected;
+        System.out.println("selected: " + this.selected);
+        this.getChildren().forEach(c -> {
+            if (!(c instanceof CubicCurve)) {
+                // visibility
+                c.setVisible(this.selected);
+            } else {
+                ((CubicCurve) c).setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
             }
         });
     }
 
     public void erase() {
-
+        // delete the curve
+        getChildren().clear();
     }
 
     public void addStartNode (double x, double y) {
@@ -156,6 +207,8 @@ public class MultiCurve extends Region {
         getChildren().add(node);
     }
     public void add (CubicCurve c) {
+        c.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
+        c.setStroke(colour);
         segments.add(c);
         getChildren().add(c);
 

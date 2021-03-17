@@ -6,11 +6,13 @@ import java.util.Vector;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
@@ -23,11 +25,15 @@ public class Main extends Application{
                   // 1: select
                   // 2: point type
                   // 3: erase
+    Color selectedColor;
+    double lineThickness;
     @Override
     public void start(Stage stage) {
         tool = 0;
         sceneHeight = 480;
         sceneWidth = 640;
+        selectedColor = Color.BLACK;
+        lineThickness = 1;
         double initialControlDistance = 48;
         Random rand = new Random();
         // used code from ClipboardDemo
@@ -53,12 +59,24 @@ public class Main extends Application{
         helpMenu.getItems().add(about);
         menubar.getMenus().addAll(fileMenu, editMenu, helpMenu);
 
+        Button penButton = new Button("pen");
+        Button selectButton = new Button("select");
+        Button pointTypeButton = new Button("point type");
+        Button eraseButton = new Button("erase");
+
+        penButton.setOnAction(actionEvent -> {tool = 0;});
+        selectButton.setOnAction(actionEvent -> {tool = 1;});
+        pointTypeButton.setOnAction(actionEvent -> {tool = 2;});
+        eraseButton.setOnAction(actionEvent -> {tool = 3;});
+
+        HBox buttons = new HBox(penButton, selectButton, pointTypeButton, eraseButton);
+
         Canvas canvas = new Canvas(sceneWidth, sceneHeight);
         Group curves = new Group();
 
         Group canvasAndCurves = new Group(canvas, curves);
 
-        VBox root = new VBox(menubar, canvasAndCurves);
+        VBox root = new VBox(menubar, buttons, canvasAndCurves);
         root.setSpacing(5);
 
         Scene scene = new Scene(root, sceneWidth, sceneHeight);
@@ -77,6 +95,11 @@ public class Main extends Application{
             System.exit(0);
         });
 
+        newDrawing.setOnAction(actionEvent -> {
+            curves.getChildren().clear();
+            currentCurve.set(null);
+        });
+
         stage.widthProperty().addListener((obs, oldVal, newVal) -> {
             sceneWidth = (double)newVal;
             canvas.setWidth(sceneWidth);
@@ -93,6 +116,7 @@ public class Main extends Application{
                     tool = 1;
                 }
                 if (currentCurve.get() != null) {
+                    currentCurve.get().selectedChanged(false);
                     currentCurve.set(null);
                 }
             }
@@ -102,7 +126,7 @@ public class Main extends Application{
             switch (tool) {
                 case 0:
                 if (curves.getChildren().isEmpty() || currentCurve.get() == null) {
-                    MultiCurve newCurve = new MultiCurve(this);
+                    MultiCurve newCurve = new MultiCurve(this, selectedColor, lineThickness);
                     newCurve.currentX = mouseEvent.getX();
                     newCurve.currentY = mouseEvent.getY();
                     newCurve.currentControlX = newCurve.currentX - initialControlDistance;
@@ -128,7 +152,7 @@ public class Main extends Application{
                     newCubicCurve.setControlX2(newControlX);
                     newCubicCurve.setControlY2(newControlY);
                     newCubicCurve.setFill(null);
-                    newCubicCurve.setStroke(Color.BLACK);
+                    newCubicCurve.setStroke(selectedColor);
                     currentCurve.get().currentX = mouseEvent.getX();
                     currentCurve.get().currentY = mouseEvent.getY();
                     currentCurve.get().currentControlX = newControlX;
@@ -155,6 +179,22 @@ public class Main extends Application{
                                     scene.setCursor(Cursor.OPEN_HAND);
                             }
                         });
+                        ((MultiCurve)c).startNodes.forEach(p -> {
+                            if (Math.sqrt(Math.pow(mouseEvent.getX()-p.x, 2) + Math.pow(mouseEvent.getY()-p.y, 2)) <= 4) {
+                                if (mouseEvent.isPrimaryButtonDown())
+                                    scene.setCursor(Cursor.CLOSED_HAND);
+                                else
+                                    scene.setCursor(Cursor.OPEN_HAND);
+                            }
+                        });
+                        ((MultiCurve)c).endNodes.forEach(p -> {
+                            if (Math.sqrt(Math.pow(mouseEvent.getX()-p.x, 2) + Math.pow(mouseEvent.getY()-p.y, 2)) <= 4) {
+                                if (mouseEvent.isPrimaryButtonDown())
+                                    scene.setCursor(Cursor.CLOSED_HAND);
+                                else
+                                    scene.setCursor(Cursor.OPEN_HAND);
+                            }
+                        });
                     });
                     break;
             }
@@ -165,6 +205,22 @@ public class Main extends Application{
                     curves.getChildren().forEach(c -> {
                         ((MultiCurve)c).points.forEach(p -> {
                             if (Math.sqrt(Math.pow(mouseEvent.getX()-p.x, 2) + Math.pow(mouseEvent.getY()-p.y, 2)) <= 8) {
+                                ((MultiCurve) c).selectedChanged(true);
+                                c.requestFocus();
+                                p.onMouseDragged(mouseEvent);
+                            }
+                        });
+                        ((MultiCurve)c).startNodes.forEach(p -> {
+                            if (Math.sqrt(Math.pow(mouseEvent.getX()-p.x, 2) + Math.pow(mouseEvent.getY()-p.y, 2)) <= 4) {
+                                ((MultiCurve) c).selectedChanged(true);
+                                c.requestFocus();
+                                p.onMouseDragged(mouseEvent);
+                            }
+                        });
+                        ((MultiCurve)c).endNodes.forEach(p -> {
+                            if (Math.sqrt(Math.pow(mouseEvent.getX()-p.x, 2) + Math.pow(mouseEvent.getY()-p.y, 2)) <= 4) {
+                                ((MultiCurve) c).selectedChanged(true);
+                                c.requestFocus();
                                 p.onMouseDragged(mouseEvent);
                             }
                         });
