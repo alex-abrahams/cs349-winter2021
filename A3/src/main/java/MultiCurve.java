@@ -2,6 +2,7 @@ import javafx.application.Application;
 import javafx.scene.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -12,6 +13,7 @@ import java.awt.*;
 import java.util.Vector;
 
 public class MultiCurve extends Region {
+    double initialControlDistance = 48;
     private void NodesToFront() {
         points.forEach(point -> {
             point.toFront();
@@ -30,6 +32,21 @@ public class MultiCurve extends Region {
             this.segment = segment;
             this.pointX = pointX;
             this.pointY = pointY;
+            node = new Circle(x, y, 4, Color.GRAY);
+            node.setStroke(Color.BLACK);
+            line = new Line(x,y,pointX,pointY);
+            line.setStroke(Color.GRAY);
+            this.getChildren().add(line);
+            this.getChildren().add(node);
+            node.setOnMouseDragged(mouseEvent -> onMouseDragged(mouseEvent));
+        }
+        public ControlNode(ControlNode c) {
+            this.x = c.x;
+            this.y = c.y;
+            this.end = c.end;
+            this.segment = c.segment;
+            this.pointY = c.pointY;
+            this.pointX = c.pointX;
             node = new Circle(x, y, 4, Color.GRAY);
             node.setStroke(Color.BLACK);
             line = new Line(x,y,pointX,pointY);
@@ -80,31 +97,31 @@ public class MultiCurve extends Region {
         double x,y;
         int segment;
         Circle node;
+        boolean sharp;
         public Node(double x, double y, int segment) {
+            this.sharp = false;
             this.x = x;
             this.y = y;
             this.segment = segment;
             node = new Circle(x, y, 8, Color.WHITE);
             node.setStroke(Color.BLACK);
             this.getChildren().add(node);
-            node.setOnMousePressed(mouseEvent -> onMousePressed(mouseEvent));
             node.setOnMouseDragged(mouseEvent -> onMouseDragged(mouseEvent));
         }
-        public void onMousePressed(MouseEvent mouseEvent) {
-            System.out.println("point " + segment + " clicked");
-            switch (parent.tool) {
-                case 2:
-                    // change point type
-                    break;
-            }
+        public Node(Node n) {
+            this.sharp = n.sharp;
+            this.x = n.x;
+            this.y = n.y;
+            this.segment = n.segment;
+            node = new Circle(x, y, 8, Color.WHITE);
+            node.setStroke(Color.BLACK);
+            this.getChildren().add(node);
+            node.setOnMouseDragged(mouseEvent -> onMouseDragged(mouseEvent));
         }
         public void onMouseDragged(MouseEvent mouseEvent) {
             if (parent.tool == 1) {
                 // move point
                 System.out.println("moving point " + segment + " to " + mouseEvent.getX() + ", " + mouseEvent.getY());
-
-                node.setCenterX(mouseEvent.getX());
-                node.setCenterY(mouseEvent.getY());
 
                 if (segment < segments.size()) {
                     double diffX = startNodes.get(segment).x - this.x;
@@ -136,7 +153,65 @@ public class MultiCurve extends Region {
                 }
                 this.x = mouseEvent.getX();
                 this.y = mouseEvent.getY();
+                update();
+                moveControlToSelf();
                 NodesToFront();
+            }
+        }
+        public void update() {
+            node.setCenterX(this.x);
+            node.setCenterY(this.y);
+        }
+        public void toggleSharp() {
+            if (sharp) {
+                sharp = false;
+                if (segment == 0) {
+                    double angle = Math.atan2(points.get(segment+1).y - this.y, (points.get(segment+1).x - this.x));
+                    double newControlX = this.x + Math.cos(angle) * initialControlDistance;
+                    double newControlY = this.y + Math.sin(angle) * initialControlDistance;
+                    startNodes.get(segment).x = newControlX;
+                    startNodes.get(segment).y = newControlY;
+                    startNodes.get(segment).update();
+                    segments.get(segment).setControlX1(newControlX);
+                    segments.get(segment).setControlY1(newControlY);
+                } else {
+                    double angle = Math.atan2(points.get(segment-1).y - this.y, (points.get(segment-1).x - this.x));
+                    double newControlX = this.x + Math.cos(angle) * initialControlDistance;
+                    double newControlY = this.y + Math.sin(angle) * initialControlDistance;
+                    endNodes.get(segment-1).x = newControlX;
+                    endNodes.get(segment-1).y = newControlY;
+                    endNodes.get(segment-1).update();
+                    segments.get(segment-1).setControlX2(newControlX);
+                    segments.get(segment-1).setControlY2(newControlY);
+                    if (segment < segments.size()) {
+                        startNodes.get(segment).x = this.x+(this.x-newControlX);
+                        startNodes.get(segment).y = this.y+(this.y-newControlY);
+                        startNodes.get(segment).update();
+                        segments.get(segment).setControlX1(this.x+(this.x-newControlX));
+                        segments.get(segment).setControlY1(this.y+(this.y-newControlY));
+                    }
+                }
+            } else {
+                sharp = true;
+                moveControlToSelf();
+            }
+        }
+        public void moveControlToSelf() {
+            if (sharp) {
+                if (segment > 0) {
+                    endNodes.get(segment-1).x = this.x;
+                    endNodes.get(segment-1).y = this.y;
+                    endNodes.get(segment-1).update();
+                    segments.get(segment-1).setControlX2(this.x);
+                    segments.get(segment-1).setControlY2(this.y);
+                }
+                if (segment < segments.size()) {
+                    startNodes.get(segment).x = this.x;
+                    startNodes.get(segment).y = this.y;
+                    startNodes.get(segment).update();
+                    segments.get(segment).setControlX1(this.x);
+                    segments.get(segment).setControlY1(this.y);
+                }
             }
         }
     }
@@ -149,20 +224,73 @@ public class MultiCurve extends Region {
     Main parent;
     Color colour;
     double lineThickness;
+    BorderStrokeStyle style;
     Vector<CubicCurve> segments = new Vector<>();
     Vector<Node> points;
     Vector<ControlNode> startNodes;
     Vector<ControlNode> endNodes;
 
-    public MultiCurve (Main parent, Color colour, double lineThickness) {
+    public MultiCurve (Main parent, Color colour, double lineThickness, BorderStrokeStyle style) {
         this.lineThickness = lineThickness;
-        selected = true;
+        this.style = style;
         currentSegment = 0;
         this.colour = colour;
         this.parent = parent;
+        selectedChanged(true);
         this.points = new Vector<>();
         this.startNodes = new Vector<>();
         this.endNodes = new Vector<>();
+        setKeyEvents();
+    }
+    public MultiCurve(MultiCurve m) {
+        this.lineThickness = m.lineThickness;
+        this.style = m.style;
+        this.colour = m.colour;
+        this.parent = m.parent;
+        this.points = new Vector<>();
+        this.startNodes = new Vector<>();
+        this.endNodes = new Vector<>();
+        this.segments = new Vector<>();
+        m.points.forEach(p -> {
+            Node c = new Node(p);
+            this.points.add(c);
+            getChildren().add(c);
+        });
+        m.startNodes.forEach(p -> {
+            ControlNode c = new ControlNode(p);
+            this.startNodes.add(c);
+            getChildren().add(c);
+        });
+        m.endNodes.forEach(p -> {
+            ControlNode c = new ControlNode(p);
+            this.endNodes.add(c);
+            getChildren().add(c);
+        });
+        m.segments.forEach(s -> {
+            CubicCurve c = new CubicCurve();
+            c.setStroke(s.getStroke());
+            c.setStartX(s.getStartX());
+            c.setStartY(s.getStartY());
+            c.setEndX(s.getEndX());
+            c.setEndY(s.getEndY());
+            c.setControlX1(s.getControlX1());
+            c.setControlY1(s.getControlY1());
+            c.setControlX2(s.getControlX2());
+            c.setControlY2(s.getControlY2());
+            c.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
+            c.setStroke(colour);
+            c.setFill(null);
+            if (BorderStrokeStyle.DASHED.equals(style)) {
+                c.getStrokeDashArray().addAll(20d, 10d);
+            } else if (BorderStrokeStyle.DOTTED.equals(style)) {
+                c.getStrokeDashArray().addAll(2d, 8d);
+            }
+            segments.add(c);
+            getChildren().add(c);
+        });
+        selectedChanged(true);
+    }
+    private void setKeyEvents() {
         setOnMouseClicked(mouseEvent -> {
             switch (parent.tool) {
                 case 1:
@@ -194,11 +322,21 @@ public class MultiCurve extends Region {
                 ((CubicCurve) c).setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
             }
         });
+        if (selected) {
+            if (parent != null) {
+                parent.curves.getChildren().forEach(c -> {
+                    if (c != this && ((MultiCurve) c).selected) {
+                        ((MultiCurve) c).selectedChanged(false);
+                    }
+                });
+            }
+        }
     }
 
     public void erase() {
         // delete the curve
         getChildren().clear();
+        parent.curves.getChildren().remove(this);
     }
 
     public void addStartNode (double x, double y) {
@@ -208,7 +346,12 @@ public class MultiCurve extends Region {
     }
     public void add (CubicCurve c) {
         c.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
-        c.setStroke(colour);
+        c.setStroke(Color.web(colour.toString()));
+        if (BorderStrokeStyle.DASHED.equals(style)) {
+            c.getStrokeDashArray().addAll(20d, 10d);
+        } else if (BorderStrokeStyle.DOTTED.equals(style)) {
+            c.getStrokeDashArray().addAll(2d, 8d);
+        }
         segments.add(c);
         getChildren().add(c);
 
