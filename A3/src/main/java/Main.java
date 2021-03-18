@@ -633,13 +633,10 @@ public class Main extends Application{
         System.out.println("copied");
     }
     public void cut() {
-        curves.getChildren().forEach(c -> {
-            if (((MultiCurve)c).selected) {
-                clipboard = new MultiCurve((MultiCurve)c);
-                ((MultiCurve) c).erase();
-                timesPasted = 0;
-            }
-        });
+        copy();
+        MultiCurve newCurve = new MultiCurve((MultiCurve)clipboard);
+        curves.getChildren().remove(clipboard);
+        clipboard = newCurve;
         System.out.println("cut");
     }
     public void paste() {
@@ -666,6 +663,7 @@ public class Main extends Application{
             pasted.points.forEach(p -> {
                 p.x += pasteOffset*timesPasted;
                 p.update();
+                p.toFront();
             });
             curves.getChildren().add(pasted);
             canvasAndCurves.requestFocus();
