@@ -2,7 +2,6 @@ import javafx.application.Application;
 import javafx.scene.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -224,13 +223,13 @@ public class MultiCurve extends Region {
     Main parent;
     Color colour;
     double lineThickness;
-    BorderStrokeStyle style;
+    int style;
     Vector<CubicCurve> segments = new Vector<>();
     Vector<Node> points;
     Vector<ControlNode> startNodes;
     Vector<ControlNode> endNodes;
 
-    public MultiCurve (Main parent, Color colour, double lineThickness, BorderStrokeStyle style) {
+    public MultiCurve (Main parent, Color colour, double lineThickness, int style) {
         this.lineThickness = lineThickness;
         this.style = style;
         currentSegment = 0;
@@ -280,9 +279,9 @@ public class MultiCurve extends Region {
             c.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
             c.setStroke(Color.web(colour.toString()));
             c.setFill(null);
-            if (BorderStrokeStyle.DASHED.equals(style)) {
+            if (style == 2) {
                 c.getStrokeDashArray().addAll(20d, 10d);
-            } else if (BorderStrokeStyle.DOTTED.equals(style)) {
+            } else if (style == 1) {
                 c.getStrokeDashArray().addAll(2d, 8d);
             }
             segments.add(c);
@@ -338,7 +337,7 @@ public class MultiCurve extends Region {
         }
     }
 
-    public void updateStyle(Color colour, double lineThickness, BorderStrokeStyle style) {
+    public void updateStyle(Color colour, double lineThickness, int style) {
         this.colour = colour;
         this.lineThickness = lineThickness;
         this.style = style;
@@ -346,9 +345,9 @@ public class MultiCurve extends Region {
             s.setStroke(Color.web(colour.toString()));
             s.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
             s.getStrokeDashArray().clear();
-            if (BorderStrokeStyle.DASHED.equals(style)) {
+            if (style == 2) {
                 s.getStrokeDashArray().addAll(20d, 10d);
-            } else if (BorderStrokeStyle.DOTTED.equals(style)) {
+            } else if (style == 1) {
                 s.getStrokeDashArray().addAll(2d, 8d);
             }
         });
@@ -368,9 +367,9 @@ public class MultiCurve extends Region {
     public void add (CubicCurve c) {
         c.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
         c.setStroke(Color.web(colour.toString()));
-        if (BorderStrokeStyle.DASHED.equals(style)) {
+        if (style == 2) {
             c.getStrokeDashArray().addAll(20d, 10d);
-        } else if (BorderStrokeStyle.DOTTED.equals(style)) {
+        } else if (style == 1) {
             c.getStrokeDashArray().addAll(2d, 8d);
         }
         segments.add(c);

@@ -18,8 +18,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.Border;
-import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -39,10 +37,11 @@ public class Main extends Application{
                   // 3: erase
     Color selectedColor;
     double lineThickness;
-    BorderStrokeStyle style;
+    int style;
     MultiCurve clipboard;
     int timesPasted = 0;
     ColorPicker colourPicker;
+    double angleOffset;
 
     Button penButton;
     Button selectButton;
@@ -54,6 +53,8 @@ public class Main extends Application{
     Button solidButton;
     Button dottedButton;
     Button dashedButton;
+
+    CubicCurve previewCurve;
     @Override
     public void start(Stage stage) {
         tool = 0;
@@ -61,7 +62,9 @@ public class Main extends Application{
         sceneWidth = 640;
         selectedColor = Color.BLACK;
         lineThickness = 1;
-        style = BorderStrokeStyle.SOLID;
+        style = 0;
+        previewCurve = new CubicCurve();
+        previewCurve.setVisible(false);
         double initialControlDistance = 48;
         Random rand = new Random();
         // used code from ClipboardDemo
@@ -198,7 +201,7 @@ public class Main extends Application{
         dashedButton = new Button();
         dashedButton.setGraphic(dashedView);
         solidButton.setOnAction(a -> {
-            style = BorderStrokeStyle.SOLID;
+            style = 0;
             curves.getChildren().forEach(c -> {
                 if (((MultiCurve)c).selected) {
                     ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
@@ -208,7 +211,7 @@ public class Main extends Application{
             canvasAndCurves.requestFocus();
         });
         dottedButton.setOnAction(a -> {
-            style = BorderStrokeStyle.DOTTED;
+            style = 1;
             curves.getChildren().forEach(c -> {
                 if (((MultiCurve)c).selected) {
                     ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
@@ -218,7 +221,7 @@ public class Main extends Application{
             canvasAndCurves.requestFocus();
         });
         dashedButton.setOnAction(a -> {
-            style = BorderStrokeStyle.DASHED;
+            style = 2;
             curves.getChildren().forEach(c -> {
                 if (((MultiCurve)c).selected) {
                     ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
@@ -233,7 +236,7 @@ public class Main extends Application{
         Canvas canvas = new Canvas(sceneWidth, sceneHeight);
         curves = new Group();
 
-        canvasAndCurves = new Group(canvas, curves);
+        canvasAndCurves = new Group(canvas, curves, previewCurve);
 
         VBox root = new VBox(menubar, buttons, row2Buttons, canvasAndCurves);
         root.setSpacing(5);
@@ -267,7 +270,7 @@ public class Main extends Application{
             }
             curves.getChildren().clear();
             currentCurve.set(null);
-            style = BorderStrokeStyle.SOLID;
+            style = 0;
             lineThickness = 1;
             tool = 0;
             setButtonsSelected();
@@ -315,6 +318,7 @@ public class Main extends Application{
                 if (currentCurve.get() != null) {
                     currentCurve.get().selectedChanged(false);
                     currentCurve.set(null);
+                    previewCurve.setVisible(false);
                 }
                 curves.getChildren().forEach(c -> {
                     if (((MultiCurve)c).selected) {
@@ -345,6 +349,7 @@ public class Main extends Application{
 
                     curves.getChildren().add(newCurve);
                     currentCurve.get().addStartNode(newCurve.currentX, newCurve.currentY);
+                    angleOffset = Math.toRadians(-90 + rand.nextDouble() * 180);
                     canvasAndCurves.requestFocus();
                 } else if (currentCurve.get() != null) {
                     System.out.println("mouse clicked at " + mouseEvent.getX() + ", " + mouseEvent.getY());
@@ -355,18 +360,20 @@ public class Main extends Application{
                     newCubicCurve.setEndY(mouseEvent.getY());
                     newCubicCurve.setControlX1(currentCurve.get().currentX + (currentCurve.get().currentX - currentCurve.get().currentControlX));
                     newCubicCurve.setControlY1(currentCurve.get().currentY + (currentCurve.get().currentY - currentCurve.get().currentControlY));
-                    double angle = Math.atan2(newCubicCurve.getStartY() - newCubicCurve.getEndY(), newCubicCurve.getStartX() - newCubicCurve.getEndX()) + Math.toRadians(-90 + rand.nextDouble() * 180);
+                    double angle = Math.atan2(newCubicCurve.getStartY() - newCubicCurve.getEndY(), newCubicCurve.getStartX() - newCubicCurve.getEndX()) + angleOffset;
                     double newControlX = mouseEvent.getX() + Math.cos(angle) * initialControlDistance;
                     double newControlY = mouseEvent.getY() + Math.sin(angle) * initialControlDistance;
                     newCubicCurve.setControlX2(newControlX);
                     newCubicCurve.setControlY2(newControlY);
                     newCubicCurve.setFill(null);
                     newCubicCurve.setStroke(selectedColor);
+                    angleOffset = Math.toRadians(-90 + rand.nextDouble() * 180);
                     currentCurve.get().currentX = mouseEvent.getX();
                     currentCurve.get().currentY = mouseEvent.getY();
                     currentCurve.get().currentControlX = newControlX;
                     currentCurve.get().currentControlY = newControlY;
                     currentCurve.get().add(newCubicCurve);
+                    previewCurve.setVisible(false);
                     System.out.println("New segment starting at " + newCubicCurve.getStartX() + ", " + newCubicCurve.getStartY() + " to " + newCubicCurve.getEndX() + ", " + newCubicCurve.getEndY());
                     System.out.println(curves.getChildren().size() + " curves, current one has " + currentCurve.get().segments.size() + " segments");
                     canvasAndCurves.requestFocus();
@@ -389,12 +396,38 @@ public class Main extends Application{
             switch (tool) {
                 case 0:
                     scene.setCursor(Cursor.CROSSHAIR);
+                    if (currentCurve.get() != null) {
+                        previewCurve.setVisible(true);
+                        previewCurve.setStartX(currentCurve.get().currentX);
+                        previewCurve.setStartY(currentCurve.get().currentY);
+                        previewCurve.setEndX(mouseEvent.getX());
+                        previewCurve.setEndY(mouseEvent.getY());
+                        previewCurve.setControlX1(currentCurve.get().currentX + (currentCurve.get().currentX - currentCurve.get().currentControlX));
+                        previewCurve.setControlY1(currentCurve.get().currentY + (currentCurve.get().currentY - currentCurve.get().currentControlY));
+                        double angle = Math.atan2(previewCurve.getStartY() - previewCurve.getEndY(), previewCurve.getStartX() - previewCurve.getEndX()) + angleOffset;
+                        double newControlX = mouseEvent.getX() + Math.cos(angle) * initialControlDistance;
+                        double newControlY = mouseEvent.getY() + Math.sin(angle) * initialControlDistance;
+                        previewCurve.setControlX2(newControlX);
+                        previewCurve.setControlY2(newControlY);
+                        previewCurve.setFill(null);
+                        previewCurve.setStroke(selectedColor);
+                        previewCurve.setStrokeWidth(lineThickness);
+                        previewCurve.getStrokeDashArray().clear();
+                        if (style == 2) {
+                            previewCurve.getStrokeDashArray().addAll(20d, 10d);
+                        } else if (style == 1) {
+                            previewCurve.getStrokeDashArray().addAll(2d, 8d);
+                        }
+                        previewCurve.toBack();
+                    }
                     break;
                 case 3:
                     scene.setCursor(Cursor.DEFAULT);
+                    previewCurve.setVisible(false);
                     break;
                 case 1:
                 case 2:
+                    previewCurve.setVisible(false);
                     scene.setCursor(Cursor.DEFAULT);
                     AtomicBoolean down = new AtomicBoolean(false);
                     curves.getChildren().forEach(c -> {
@@ -487,7 +520,7 @@ public class Main extends Application{
         }
         Color colour;
         double lineThickness;
-        BorderStrokeStyle style;
+        int style;
         Vector<saveablePoint> points;
         Vector<saveableSegment> segments;
         public saveableCurve(MultiCurve c) {
@@ -686,15 +719,15 @@ public class Main extends Application{
                 break;
         }
 
-        if (style == BorderStrokeStyle.SOLID) {
+        if (style == 0) {
             solidButton.setEffect(new InnerShadow(2, Color.BLACK));
             dottedButton.setEffect(null);
             dashedButton.setEffect(null);
-        } else if (style == BorderStrokeStyle.DOTTED) {
+        } else if (style == 1) {
             solidButton.setEffect(null);
             dottedButton.setEffect(new InnerShadow(2, Color.BLACK));
             dashedButton.setEffect(null);
-        } else if (style == BorderStrokeStyle.DASHED) {
+        } else if (style == 2) {
             solidButton.setEffect(null);
             dottedButton.setEffect(null);
             dashedButton.setEffect(new InnerShadow(2, Color.BLACK));
