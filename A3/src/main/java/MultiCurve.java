@@ -278,7 +278,7 @@ public class MultiCurve extends Region {
             c.setControlX2(s.getControlX2());
             c.setControlY2(s.getControlY2());
             c.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
-            c.setStroke(colour);
+            c.setStroke(Color.web(colour.toString()));
             c.setFill(null);
             if (BorderStrokeStyle.DASHED.equals(style)) {
                 c.getStrokeDashArray().addAll(20d, 10d);
@@ -324,6 +324,11 @@ public class MultiCurve extends Region {
         });
         if (selected) {
             if (parent != null) {
+                parent.selectedColor = colour;
+                parent.style = style;
+                parent.lineThickness = lineThickness;
+                parent.colourPicker.setValue(colour);
+                parent.setButtonsSelected();
                 parent.curves.getChildren().forEach(c -> {
                     if (c != this && ((MultiCurve) c).selected) {
                         ((MultiCurve) c).selectedChanged(false);
@@ -331,6 +336,22 @@ public class MultiCurve extends Region {
                 });
             }
         }
+    }
+
+    public void updateStyle(Color colour, double lineThickness, BorderStrokeStyle style) {
+        this.colour = colour;
+        this.lineThickness = lineThickness;
+        this.style = style;
+        segments.forEach(s -> {
+            s.setStroke(Color.web(colour.toString()));
+            s.setStrokeWidth(lineThickness + (this.selected ? 2 : 0));
+            s.getStrokeDashArray().clear();
+            if (BorderStrokeStyle.DASHED.equals(style)) {
+                s.getStrokeDashArray().addAll(20d, 10d);
+            } else if (BorderStrokeStyle.DOTTED.equals(style)) {
+                s.getStrokeDashArray().addAll(2d, 8d);
+            }
+        });
     }
 
     public void erase() {

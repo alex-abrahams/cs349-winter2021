@@ -5,18 +5,20 @@ import javafx.application.Application;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Vector;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javafx.scene.control.*;
+import javafx.scene.effect.Effect;
+import javafx.scene.effect.InnerShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -40,6 +42,18 @@ public class Main extends Application{
     BorderStrokeStyle style;
     MultiCurve clipboard;
     int timesPasted = 0;
+    ColorPicker colourPicker;
+
+    Button penButton;
+    Button selectButton;
+    Button pointTypeButton;
+    Button eraseButton;
+    Button thickness1Button;
+    Button thickness2Button;
+    Button thickness3Button;
+    Button solidButton;
+    Button dottedButton;
+    Button dashedButton;
     @Override
     public void start(Stage stage) {
         tool = 0;
@@ -81,27 +95,49 @@ public class Main extends Application{
         helpMenu.getItems().add(about);
         menubar.getMenus().addAll(fileMenu, editMenu, helpMenu);
 
-        Button penButton = new Button("pen");
-        Button selectButton = new Button("select");
-        Button pointTypeButton = new Button("point type");
-        Button eraseButton = new Button("erase");
+        Image penImage = new Image("pen.png");
+        Image selectImage = new Image("pointer.png");
+        Image pointTypeImage = new Image("pointtype.png");
+        Image eraserImage = new Image("eraser.png");
+        ImageView penView = new ImageView(penImage);
+        ImageView selectView = new ImageView(selectImage);
+        ImageView pointTypeView = new ImageView(pointTypeImage);
+        ImageView eraserView = new ImageView(eraserImage);
+
+        penButton = new Button("pen");
+        penButton.setGraphic(penView);
+        selectButton = new Button("select");
+        selectButton.setGraphic(selectView);
+        pointTypeButton = new Button("point type");
+        pointTypeButton.setGraphic(pointTypeView);
+        eraseButton = new Button("erase");
+        eraseButton.setGraphic(eraserView);
 
         penButton.setOnAction(actionEvent -> {tool = 0;
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
         selectButton.setOnAction(actionEvent -> {tool = 1;
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
         pointTypeButton.setOnAction(actionEvent -> {tool = 2;
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
         eraseButton.setOnAction(actionEvent -> {tool = 3;
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
 
         HBox buttons = new HBox(penButton, selectButton, pointTypeButton, eraseButton);
 
         Label colourLabel = new Label("colour:");
-        ColorPicker colourPicker = new ColorPicker();
+        colourPicker = new ColorPicker();
         colourPicker.setValue(selectedColor);
         colourPicker.setOnAction(e -> {
             selectedColor = colourPicker.getValue();
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
         });
 
         Image pixel = new Image("pixel.png");
@@ -114,18 +150,37 @@ public class Main extends Application{
         ImageView thickness3 = new ImageView(pixel);
         thickness3.setFitHeight(3);
         thickness3.setPreserveRatio(true);
+
         Label thickness = new Label("thickness: ");
-        Button thickness1Button = new Button();
+        thickness1Button = new Button();
         thickness1Button.setGraphic(thickness1);
-        Button thickness2Button = new Button();
+        thickness2Button = new Button();
         thickness2Button.setGraphic(thickness2);
-        Button thickness3Button = new Button();
+        thickness3Button = new Button();
         thickness3Button.setGraphic(thickness3);
         thickness1Button.setOnAction(actionEvent -> {lineThickness = 1;
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
         thickness2Button.setOnAction(actionEvent -> {lineThickness = 2;
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
         thickness3Button.setOnAction(actionEvent -> {lineThickness = 3;
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
+            setButtonsSelected();
             canvasAndCurves.requestFocus();});
 
         Image solidImage = new Image("solid.png");
@@ -136,22 +191,40 @@ public class Main extends Application{
         ImageView dashedView = new ImageView(dashedImage);
 
         Label styleLabel = new Label("style: ");
-        Button solidButton = new Button();
+        solidButton = new Button();
         solidButton.setGraphic(solidView);
-        Button dottedButton = new Button();
+        dottedButton = new Button();
         dottedButton.setGraphic(dottedView);
-        Button dashedButton = new Button();
+        dashedButton = new Button();
         dashedButton.setGraphic(dashedView);
         solidButton.setOnAction(a -> {
             style = BorderStrokeStyle.SOLID;
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
+            setButtonsSelected();
             canvasAndCurves.requestFocus();
         });
         dottedButton.setOnAction(a -> {
             style = BorderStrokeStyle.DOTTED;
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
+            setButtonsSelected();
             canvasAndCurves.requestFocus();
         });
         dashedButton.setOnAction(a -> {
             style = BorderStrokeStyle.DASHED;
+            curves.getChildren().forEach(c -> {
+                if (((MultiCurve)c).selected) {
+                    ((MultiCurve) c).updateStyle(selectedColor, lineThickness, style);
+                }
+            });
+            setButtonsSelected();
             canvasAndCurves.requestFocus();
         });
 
@@ -166,6 +239,8 @@ public class Main extends Application{
         root.setSpacing(5);
 
         Scene scene = new Scene(root, sceneWidth, sceneHeight);
+
+        setButtonsSelected();
 
         // Attach the scene to the stage and show it
         stage.setScene(scene);
@@ -192,6 +267,10 @@ public class Main extends Application{
             }
             curves.getChildren().clear();
             currentCurve.set(null);
+            style = BorderStrokeStyle.SOLID;
+            lineThickness = 1;
+            tool = 0;
+            setButtonsSelected();
             canvasAndCurves.requestFocus();
         });
 
@@ -231,6 +310,7 @@ public class Main extends Application{
             if (keyEvent.getCode().equals(KeyCode.ESCAPE)) {
                 if (tool == 0) {
                     tool = 1;
+                    setButtonsSelected();
                 }
                 if (currentCurve.get() != null) {
                     currentCurve.get().selectedChanged(false);
@@ -310,15 +390,18 @@ public class Main extends Application{
                 case 0:
                     scene.setCursor(Cursor.CROSSHAIR);
                     break;
-                case 1:
-                case 2:
                 case 3:
                     scene.setCursor(Cursor.DEFAULT);
+                    break;
+                case 1:
+                case 2:
+                    scene.setCursor(Cursor.DEFAULT);
+                    AtomicBoolean down = new AtomicBoolean(false);
                     curves.getChildren().forEach(c -> {
                         ((MultiCurve)c).points.forEach(p -> {
                             if (Math.sqrt(Math.pow(mouseEvent.getX()-p.x, 2) + Math.pow(mouseEvent.getY()-p.y, 2)) <= 8) {
                                 if (mouseEvent.isPrimaryButtonDown())
-                                    scene.setCursor(Cursor.CLOSED_HAND);
+                                    down.set(true);
                                 else
                                     scene.setCursor(Cursor.OPEN_HAND);
                             }
@@ -327,7 +410,7 @@ public class Main extends Application{
                             ((MultiCurve) c).startNodes.forEach(p -> {
                                 if (Math.sqrt(Math.pow(mouseEvent.getX() - p.x, 2) + Math.pow(mouseEvent.getY() - p.y, 2)) <= 4) {
                                     if (mouseEvent.isPrimaryButtonDown())
-                                        scene.setCursor(Cursor.CLOSED_HAND);
+                                        down.set(true);
                                     else
                                         scene.setCursor(Cursor.OPEN_HAND);
                                 }
@@ -335,13 +418,16 @@ public class Main extends Application{
                             ((MultiCurve) c).endNodes.forEach(p -> {
                                 if (Math.sqrt(Math.pow(mouseEvent.getX() - p.x, 2) + Math.pow(mouseEvent.getY() - p.y, 2)) <= 4) {
                                     if (mouseEvent.isPrimaryButtonDown())
-                                        scene.setCursor(Cursor.CLOSED_HAND);
+                                        down.set(true);
                                     else
                                         scene.setCursor(Cursor.OPEN_HAND);
                                 }
                             });
                         }
                     });
+                    if (down.get()) {
+                        scene.setCursor(Cursor.CLOSED_HAND);
+                    }
                     break;
             }
         });
@@ -473,7 +559,7 @@ public class Main extends Application{
                 elements = gson.fromJson(reader, saveableCurve[].class);
 
                 for (saveableCurve e:elements) {
-                    MultiCurve c = new MultiCurve(this, e.colour, e.lineThickness, e.style);
+                    MultiCurve c = new MultiCurve(this, Color.web(e.colour.toString()), e.lineThickness, e.style);
                     c.addStartNode(e.segments.get(0).startX, e.segments.get(0).startY);
                     e.segments.forEach(s -> {
                         CubicCurve cc = new CubicCurve();
@@ -486,7 +572,7 @@ public class Main extends Application{
                         cc.setEndX(s.endX);
                         cc.setEndY(s.endY);
                         cc.setFill(null);
-                        cc.setStroke(e.colour);
+                        cc.setStroke(Color.web(e.colour.toString()));
                         c.add(cc);
                     });
                     for (int i=0; i<e.points.size(); i++) {
@@ -557,5 +643,61 @@ public class Main extends Application{
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message, ButtonType.YES, ButtonType.NO);
         ButtonType result = alert.showAndWait().orElse(ButtonType.NO);
         return (ButtonType.YES.equals(result));
+    }
+    public void setButtonsSelected() {
+        if (lineThickness == 1) {
+            thickness1Button.setEffect(new InnerShadow(2, Color.BLACK));
+            thickness2Button.setEffect(null);
+            thickness3Button.setEffect(null);
+        } else if (lineThickness == 2) {
+            thickness2Button.setEffect(new InnerShadow(2, Color.BLACK));
+            thickness1Button.setEffect(null);
+            thickness3Button.setEffect(null);
+        } else if (lineThickness == 3) {
+            thickness3Button.setEffect(new InnerShadow(2, Color.BLACK));
+            thickness1Button.setEffect(null);
+            thickness2Button.setEffect(null);
+        }
+
+        switch (tool) {
+            case 0:
+                penButton.setEffect(new InnerShadow(2, Color.BLACK));
+                selectButton.setEffect(null);
+                pointTypeButton.setEffect(null);
+                eraseButton.setEffect(null);
+                break;
+            case 1:
+                penButton.setEffect(null);
+                selectButton.setEffect(new InnerShadow(2, Color.BLACK));
+                pointTypeButton.setEffect(null);
+                eraseButton.setEffect(null);
+                break;
+            case 2:
+                penButton.setEffect(null);
+                selectButton.setEffect(null);
+                pointTypeButton.setEffect(new InnerShadow(2, Color.BLACK));
+                eraseButton.setEffect(null);
+                break;
+            case 3:
+                penButton.setEffect(null);
+                selectButton.setEffect(null);
+                pointTypeButton.setEffect(null);
+                eraseButton.setEffect(new InnerShadow(2, Color.BLACK));
+                break;
+        }
+
+        if (style == BorderStrokeStyle.SOLID) {
+            solidButton.setEffect(new InnerShadow(2, Color.BLACK));
+            dottedButton.setEffect(null);
+            dashedButton.setEffect(null);
+        } else if (style == BorderStrokeStyle.DOTTED) {
+            solidButton.setEffect(null);
+            dottedButton.setEffect(new InnerShadow(2, Color.BLACK));
+            dashedButton.setEffect(null);
+        } else if (style == BorderStrokeStyle.DASHED) {
+            solidButton.setEffect(null);
+            dottedButton.setEffect(null);
+            dashedButton.setEffect(new InnerShadow(2, Color.BLACK));
+        }
     }
 }
