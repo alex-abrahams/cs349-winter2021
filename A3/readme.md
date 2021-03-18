@@ -12,4 +12,4 @@ windows 10 build 19041.804
 
 all button graphics drawn myself
 
-this project uses Gson 2.8.6
+this project uses Gson 2.8.6 (licensed under Apache 2.0 license)
