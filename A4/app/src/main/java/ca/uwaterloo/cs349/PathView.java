@@ -18,7 +18,7 @@ public class PathView extends View implements android.view.ViewTreeObserver.OnPr
         super(context, attrs);
     }
     public void onSizeChanged() {
-
+        requestLayout();
     }
 
     @Override
