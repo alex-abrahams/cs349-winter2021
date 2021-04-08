@@ -12,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.Vector;
 
@@ -28,7 +30,7 @@ public class LibraryFragment extends Fragment {
         mViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
-                textView.setText(s + " - Library");
+                textView.setText((mViewModel.getGestures().getValue().isEmpty()) ? "no gestures saved" : "this is the list of gestures");
             }
         });
         mViewModel.getGestures().observe(getViewLifecycleOwner(), new Observer<Vector<Gesture>>() {
@@ -47,9 +49,12 @@ public class LibraryFragment extends Fragment {
                     public void onClick(DialogInterface dialog, int which) {
                         switch (which){
                             case DialogInterface.BUTTON_POSITIVE:
+                                String deletedMessage = selected.name + " was deleted";
                                 mViewModel.gestures.getValue().remove((int)id);
                                 final ArrayAdapter adapter = new ArrayAdapter<Gesture>(getContext(), R.layout.activity_listview, mViewModel.gestures.getValue());
                                 listView.setAdapter(adapter);
+                                Snackbar message = Snackbar.make(root, deletedMessage, BaseTransientBottomBar.LENGTH_SHORT);
+                                message.show();
                                 break;
                             case DialogInterface.BUTTON_NEGATIVE:
 
